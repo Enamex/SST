@@ -71,9 +71,9 @@ class ProposalDataset(object):
         nb_videos = len(prop_captured)
         proportion = np.mean(prop_captured[prop_captured != -1])
         nb_no_proposals = (prop_captured == -1).sum()
-        print "Number of videos in the dataset: {}".format(nb_videos)
-        print "Proportion of videos with no proposals: {}".format(1. * nb_no_proposals / nb_videos)
-        print "Proportion of action proposals captured during labels creation: {}".format(proportion)
+        print("Number of videos in the dataset: {}".format(nb_videos))
+        print("Proportion of videos with no proposals: {}".format(1. * nb_no_proposals / nb_videos))
+        print("Proportion of action proposals captured during labels creation: {}".format(proportion))
 
 
 class ActivityNet(ProposalDataset):
@@ -99,7 +99,7 @@ class ActivityNet(ProposalDataset):
         """
         Overwriting parent class to generate action proposal labels
         """
-        print "| Generating labels for action proposals"
+        print("| Generating labels for action proposals")
         label_dataset = h5py.File(args.labels, 'w')
         bar = progressbar.ProgressBar(maxval=len(self.data['database'].keys())).start()
         prop_captured = []
@@ -227,7 +227,7 @@ class TrainSplit(DataSplit):
             label_windows[j, 0:w_end - w_start, :] = labels[w_start:w_end, :]
             # if label_windows[j].sum() == 0:
         # check to see how often trainin examples have all 0 labels
-        #	print "No proposals!!"
+        #	print("No proposals!!")
         # code to sample proposals avoiding all 0 situations
         # k = 0
         # while k<=50:
@@ -243,7 +243,7 @@ class TrainSplit(DataSplit):
         #		label_windows[j, 0:w_end-w_start, :] = labels[w_start:w_end, :]
         #		if label_windows.sum()!=0:
         #			return torch.FloatTensor(feature_windows), masks, torch.Tensor(label_windows)
-        # print "No labels!!!"
+        # print("No labels!!!")
         return torch.FloatTensor(feature_windows), masks, torch.Tensor(label_windows)
 
 

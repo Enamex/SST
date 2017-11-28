@@ -126,20 +126,20 @@ with open(os.path.join(args.save, 'args.json'), 'w') as f:
 # Load data
 ###############################################################################
 
-print "| Loading data into corpus: %s" % args.data
+print("| Loading data into corpus: %s" % args.data)
 dataset = getattr(data, args.dataset)(args)
 w1 = dataset.w1
 train_dataset = TrainSplit(dataset.training_ids, dataset, args)
 val_dataset = EvaluateSplit(dataset.validation_ids, dataset, args)
 train_val_dataset = EvaluateSplit(dataset.training_ids, dataset, args)
-print "| Dataset created"
+print("| Dataset created")
 train_loader = DataLoader(train_dataset, shuffle=args.shuffle, batch_size=args.batch_size, num_workers=args.nthreads,
                           collate_fn=train_dataset.collate_fn)
 train_evaluator = DataLoader(train_val_dataset, shuffle=args.shuffle, batch_size=1, num_workers=args.nthreads,
                              collate_fn=val_dataset.collate_fn)
 val_evaluator = DataLoader(val_dataset, shuffle=args.shuffle, batch_size=1, num_workers=args.nthreads,
                            collate_fn=val_dataset.collate_fn)
-print "| Data Loaded: # training data: %d, # val data: %d" % (len(train_loader) * args.batch_size, len(val_evaluator))
+print("| Data Loaded: # training data: %d, # val data: %d" % (len(train_loader) * args.batch_size, len(val_evaluator)))
 
 ###############################################################################
 # Build the model
@@ -228,7 +228,7 @@ def evaluate(data_loader, maximum=None):
             features = features.cuda()
         features = Variable(features)
         proposals = model(features)
-	recall[batch_idx] = calculate_stats(proposals, gt_times, duration, args)
+    recall[batch_idx] = calculate_stats(proposals, gt_times, duration, args)
     return np.mean(recall)
 
 
@@ -243,6 +243,8 @@ def train(epoch, w1):
             labels = labels.cuda()
             masks = masks.cuda()
         features = Variable(features)
+        # print(repr(features))
+        # raise ValueError()
         optimizer.zero_grad()
         proposals = model(features)
         loss = model.compute_loss_with_BCE(proposals, masks, labels, w1)
@@ -251,15 +253,15 @@ def train(epoch, w1):
         # ratio of weights updates to debug 
         # for group in optimizer.param_groups:
         # for p in group['params']:
-        # print "ratio of weights update "
-        # print p.grad.div(p).mean().data
+        # print("ratio of weights update ")
+        # print(p.grad.div(p).mean().data)
         total_loss.append(loss.data[0])
 
         # Debugging training samples
         if args.debug:
             recall = evaluate(train_evaluator, maximum=args.num_vids_eval)
             log_entry = ('| train recall@{}-iou={}: {:2.4f}\%'.format(args.num_proposals, args.iou_threshold, recall))
-            print log_entry
+            print(log_entry)
 
         # Print out training loss every interval in the batch
         if batch_idx % args.log_interval == 0:  # and batch_idx > 0:
@@ -269,7 +271,7 @@ def train(epoch, w1):
                         'loss {:5.6f}'.format(
                     epoch, batch_idx, len(train_loader), args.lr,
                     elapsed * 1000 / args.log_interval, cur_loss * 1000)
-            print log_entry
+            print(log_entry)
             with open(os.path.join(args.save, 'train.log'), 'a') as f:
                 f.write(log_entry)
                 f.write('\n')
@@ -285,7 +287,7 @@ for epoch in range(1, args.epochs + 1):
     print('-' * 89)
     log_entry = ('| end of epoch {:3d} | time: {:5.2f}s | val recall@{}-iou={}: {:2.2f}\%'.format(
             epoch, (time.time() - epoch_start_time), args.num_proposals, args.iou_threshold, recall))
-    print log_entry
+    print(log_entry)
     print('-' * 89)
     with open(os.path.join(args.save, 'val.log'), 'a') as f:
         f.write(log_entry)
@@ -295,7 +297,7 @@ for epoch in range(1, args.epochs + 1):
 
 # Run on test data and save the model.
 # This is not needed now since test videos have no proposals 
-# print "| Testing model on test set"
+# print("| Testing model on test set")
 # test_dataset = EvaluateSplit(dataset.testing_ids, dataset, args)
 # test_evaluator = DataLoader(test_dataset, shuffle=args.shuffle, batch_size=1, num_workers=args.nthreads, collate_fn=test_dataset.collate_fn)
 # test_precision, test_recall = evaluate(test_evaluator)

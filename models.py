@@ -38,6 +38,7 @@ class SST(nn.Module):
     def forward(self, features):
         N, T, _ = features.size()
 
+
         rnn_output, _ = self.rnn(features)
         rnn_output = rnn_output.contiguous()
         rnn_output = rnn_output.view(rnn_output.size(0) * rnn_output.size(1), rnn_output.size(2))
@@ -52,7 +53,7 @@ class SST(nn.Module):
         masks = torch.autograd.Variable(masks)
         outputs = outputs.view(-1, self.W, self.K)
         loss = 0.0
-        print outputs.size()
+        print(outputs.size())
         for n in range(outputs.size(0)):
             for t in range(self.W):
                 w1 = torch.sum(outputs[n, t, :]) / outputs.numel()
@@ -60,7 +61,7 @@ class SST(nn.Module):
                 for j in range(self.K):
                     loss -= w1 * labels[n, t, j] * torch.log(outputs[n, t, j])
                     loss -= w0 * (1.0 - labels[n, t, j]) * torch.log(1.0 - outputs[n, t, j])
-            print n, loss
+            print(n, loss)
         return loss
 
     def compute_loss_with_BCE(self, outputs, masks, labels, w1):
