@@ -30,7 +30,7 @@ class SST(nn.Module):
         self.rnn_num_layers = rnn_num_layers
         self.rnn_dropout = rnn_dropout
         self.K = K
-	self.C = C
+        self.C = C
 
     def eval(self):
         self.rnn.dropout = 0
@@ -137,7 +137,7 @@ class SST(nn.Module):
         masks = torch.autograd.Variable(masks)
         outputs = outputs.view(-1, self.W, self.K)
         loss = 0.0
-        print outputs.size()
+        print(outputs.size())
         for n in range(outputs.size(0)):
             for t in range(self.W):
                 w1 = torch.sum(outputs[n, t, :]) / outputs.numel()
@@ -145,5 +145,5 @@ class SST(nn.Module):
                 for j in range(self.K):
                     loss -= w1 * labels[n, t, j] * torch.log(outputs[n, t, j])
                     loss -= w0 * (1.0 - labels[n, t, j]) * torch.log(1.0 - outputs[n, t, j])
-            print n, loss
+            print(n, loss)
         return loss
