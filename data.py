@@ -21,10 +21,21 @@ class ProposalDataset(object):
         """
         assert os.path.exists(args.data)
         assert os.path.exists(args.features)
-        self.data = json.load(open(args.data))
+
+        if args.dataset == "ActivtyNetCaptions":
+            self.train = json.load(open(args.train))
+            self.val   = json.load(open(args.val))
+            self.training_ids = json.load(open(args.train_ids))
+            self.validation_ids = json.load(open(args.val_ids))
+            self.testing_ids  = json.load(open(args.test_ids))
+        else:
+            self.data = json.load(open(args.data))
+
         self.features = h5py.File(args.features)
+
         if not os.path.exists(args.labels) or not os.path.exists(args.vid_ids):
             self.generate_labels(args)
+            
         self.labels = h5py.File(args.labels)
         self.vid_ids = json.load(open(args.vid_ids))
 
@@ -75,6 +86,93 @@ class ProposalDataset(object):
         print("Proportion of videos with no proposals: {}".format(1. * nb_no_proposals / nb_videos))
         print("Proportion of action proposals captured during labels creation: {}".format(proportion))
 
+class ActivityNetCaptions(ProposalDataset):
+    """
+    ActivityNet is responsible for parsing the raw activity net dataset and converting it into a
+    format that DataSplit (defined below) can use. This level of abstraction is used so that
+    DataSplit can be used with other dataset and we would only need to write a class similar
+    to this one.
+    """
+
+    def __init__(self, args):
+        super(self.__class__, self).__init__(args)
+        self.durations = {}
+        self.gt_times = {}
+        self.pos_prop_weight = self.vid_ids['pos_prop_weight']
+
+        for vid_id in self.training_ids:
+            self.durations[vid_id] = self.train[vid_id]["duration"]
+            self.gt_times[vid_id] = self.train[vid_id]["timestamps"]
+
+        for vid_id in self.validation_ids:
+            self.durations[vid_id] = self.val[vid_id]["duration"]
+            self.gt_times[vid_id] = self.val[vid_id]["timestamps"]
+
+    def generate_labels(self, args):
+        """
+        Overwriting parent class to generate action proposal labels
+        """
+        print("| Generating labels for action proposals")
+        label_dataset = h5py.File(args.labels, 'w')
+        prop_captured = []
+        prop_pos_examples = []
+
+        data = [] 
+        data.extend(self.training_ids)
+        data.extend(self.validation_ids)
+        data.extend(self.testing_ids)
+
+        bar = progressbar.ProgressBar(maxval=len(data)).start()
+
+        for progress, video_id in enumerate(data):
+            features = self.features['v_' + video_id]['c3d_features']
+            nfeats   = features.shape[0]
+            duration = self.train[video_id]['duration']
+            timestamps = self.train[video_id]['timestamps']
+            featstamps = [self.timestamp_to_featstamp(x, nfeats, duration) for x in timestamps]
+            nb_prop = len(featstamps)
+
+            for i in range(nb_prop):
+                if (featstamps[nb_prop - i - 1][1] - featstamps[nb_prop - i - 1][0]) > args.K / args.iou_threshold:
+                    # we discard these proposals since they will not be captured for this value of K 
+                    del featstamps[nb_prop - i - 1]
+            if len(featstamps) == 0:
+                if len(timestamps) == 0:
+                    # no proposals in this video
+                    prop_captured += [-1.]
+                else:
+                    # no proposals captured in this video since all have a length above threshold
+                    prop_captured += [0.]
+                continue
+
+            labels = np.zeros((nfeats, args.K))
+            gt_captured = []
+            for t in range(nfeats):
+                for k in xrange(args.K):
+                    iou, gt_index = self.iou([t - k, t + 1], featstamps, return_index=True)
+                    if iou >= args.iou_threshold:
+                        labels[t, k] = 1
+                        gt_captured += [gt_index]
+            prop_captured += [1. * len(np.unique(gt_captured)) / len(timestamps)]
+
+            if progress < len(train_ids):
+                prop_pos_examples += [np.sum(labels, axis=0) * 1. / nfeats]
+
+            video_dataset = label_dataset.create_dataset(video_id, (nfeats, args.K), dtype='f')
+            video_dataset[...] = labels
+            bar.update(progress)
+
+        # We are only using split_ids for w1
+        split_ids = {
+                     'training': self.training_ids, 
+                     'validation': self.validation_ids, 
+                     'testing': self.testing_ids, 
+                     'pos_prop_weight': np.array(prop_pos_examples).mean(axis=0).tolist() # this will be used to compute the loss
+                    }  
+
+        json.dump(split_ids, open(args.vid_ids, 'w'))
+        self.compute_proposals_stats(np.array(prop_captured))
+        bar.finish()
 
 class ActivityNet(ProposalDataset):
     """
