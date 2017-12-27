@@ -60,7 +60,7 @@ def parse_args():
                         help='dropout between RNN layers')
     parser.add_argument('--momentum', type=float, default=0.9,
                         help='SGD momentum')
-    parser.add_argument('--weight-decay', type=float, default=0,
+    parser.add_argument('--weight-decay', type=float, default=0.00001,
                         help='SGD weight decay')
     parser.add_argument('--epochs', type=int, default=100,
                         help='upper epoch limit')

@@ -22,7 +22,7 @@ class ProposalDataset(object):
         assert os.path.exists(args.data)
         assert os.path.exists(args.features)
 
-        if args.dataset == "ActivtyNetCaptions":
+        if args.dataset == "ActivityNetCaptions":
             self.train = json.load(open(args.train))
             self.val   = json.load(open(args.val))
             self.training_ids = json.load(open(args.train_ids))
@@ -120,15 +120,20 @@ class ActivityNetCaptions(ProposalDataset):
         data = [] 
         data.extend(self.training_ids)
         data.extend(self.validation_ids)
-        data.extend(self.testing_ids)
+        #data.extend(self.testing_ids)
 
         bar = progressbar.ProgressBar(maxval=len(data)).start()
 
         for progress, video_id in enumerate(data):
-            features = self.features['v_' + video_id]['c3d_features']
+            features = self.features[video_id]['c3d_features']
             nfeats   = features.shape[0]
-            duration = self.train[video_id]['duration']
-            timestamps = self.train[video_id]['timestamps']
+            if progress < len(self.training_ids):
+                duration = self.train[video_id]['duration']
+                timestamps = self.train[video_id]['timestamps']
+            else:
+                duration = self.val[video_id]['duration']
+                timestamps = self.val[video_id]['timestamps']
+                
             featstamps = [self.timestamp_to_featstamp(x, nfeats, duration) for x in timestamps]
             nb_prop = len(featstamps)
 
@@ -148,14 +153,14 @@ class ActivityNetCaptions(ProposalDataset):
             labels = np.zeros((nfeats, args.K))
             gt_captured = []
             for t in range(nfeats):
-                for k in xrange(args.K):
+                for k in range(args.K):
                     iou, gt_index = self.iou([t - k, t + 1], featstamps, return_index=True)
                     if iou >= args.iou_threshold:
                         labels[t, k] = 1
                         gt_captured += [gt_index]
             prop_captured += [1. * len(np.unique(gt_captured)) / len(timestamps)]
 
-            if progress < len(train_ids):
+            if progress < len(self.training_ids):
                 prop_pos_examples += [np.sum(labels, axis=0) * 1. / nfeats]
 
             video_dataset = label_dataset.create_dataset(video_id, (nfeats, args.K), dtype='f')
@@ -230,7 +235,7 @@ class ActivityNet(ProposalDataset):
             labels = np.zeros((nfeats, args.K))
             gt_captured = []
             for t in range(nfeats):
-                for k in xrange(args.K):
+                for k in range(args.K):
                     iou, gt_index = self.iou([t - k, t + 1], featstamps, return_index=True)
                     if iou >= args.iou_threshold:
                         labels[t, k] = 1
